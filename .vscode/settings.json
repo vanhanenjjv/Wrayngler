@@ -1,0 +1,18 @@
+{
+    "FSharp.inlayHints.typeAnnotations": false,
+    "FSharp.inlayHints.enabled": false,
+    "editor.inlayHints.enabled": "offUnlessPressed",
+    "FSharp.inlayHints.disableLongTooltip": true,
+    "editor.formatOnSave": true,
+    "files.exclude": {
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/CVS": true,
+        "**/.DS_Store": true,
+        "**/Thumbs.db": true,
+        "**/bin": true,
+        "**/obj": true,
+        "**/fable_modules": true
+    }
+}
