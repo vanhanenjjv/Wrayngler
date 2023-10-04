@@ -40,49 +40,52 @@ let rec flattenDictionary
 
 [<EntryPoint>]
 let main (args: string array) : int =
+    let compileTemplate (variables: option<string * string> list) =
+        let variables = variables |> List.choose id
+        "wrayngler.toml" |> File.readAllText |> TemplateEngine.compile variables
+
+    let writeWranglerConfigurationFile (config: string) : string =
+        File.writeAllText "wrangler.toml" config
+        config
+
+    let parseConfiguration (config: string) : list<string * string> =
+        Toml.ToModel(config) |> Seq.fold (flattenDictionary []) List.empty
+
     let options = Options.parse args
 
-    let wranglerConfig =
-        "wrayngler.toml"
-        |> File.readAllText
-        |> TemplateEngine.compile [ "stage", "dev" ]
-
-    wranglerConfig |> File.writeAllText "wrangler.toml"
-
     match options with
-    | Compile -> 0
-    | options ->
-        let wranglerConfig = Toml.ToModel(wranglerConfig)
-        let wranglerConfig = wranglerConfig |> Seq.fold (flattenDictionary []) List.empty
+    | Compile stage ->
+        [ stage |> Option.map (fun stage -> "stage", stage) ]
+        |> compileTemplate
+        |> writeWranglerConfigurationFile
 
-        let accountId =
-            wranglerConfig |> List.find (fun (key, _) -> key = "account_id") |> snd
-
-        let wrangler = WranglerClient({ AccountId = accountId })
-
-        let queues = wrangler.listQueues ()
-
-        let doesQueueExist (name: string) : bool =
-            queues |> Seq.exists (fun queue -> queue.Name = name)
-
-        for entry in wranglerConfig do
-            match entry with
+    | Deploy stage ->
+        [ stage |> Option.map (fun stage -> "stage", stage) ]
+        |> compileTemplate
+        |> writeWranglerConfigurationFile
+        |> parseConfiguration
+        |> List.iter (function
             | Queue name ->
-                match options with
-                | Deploy ->
-                    if doesQueueExist name then
-                        printfn $"Queue '{name}' already exists."
-                    else
-                        wrangler.createQueue name
-                        printfn $"Created queue '{name}'."
-                | Destroy ->
-                    if doesQueueExist name then
-                        wrangler.deleteQueue name
-                        printfn $"Deleted queue '{name}'."
-                    else
-                        printfn $"Queue '{name}' does not exist."
-                | _ -> ()
-            | KVNamespace name -> printfn "KVNamespace: %s" name
-            | Unknown(_, _) -> ()
+                if doesQueueExist name then
+                    printfn $"Queue '{name}' already exists."
+                else
+                    wrangler.createQueue name
+                    printfn $"Created queue '{name}'."
+            | _ -> ())
+    | Destroy stage ->
+        [ stage |> Option.map (fun stage -> "stage", stage) ]
+        |> compileTemplate
+        |> writeWranglerConfigurationFile
+        |> parseConfiguration
+        |> List.iter (function
+            | Queue name ->
+                if doesQueueExist name then
+                    wrangler.deleteQueue name
+                    printfn $"Deleted queue '{name}'."
+                else
+                    printfn $"Queue '{name}' does not exist."
+            | _ -> ())
+    | None -> printfn (Options.describeArguments ())
 
-        0
+
+    0

@@ -7,6 +7,7 @@ type CliArgument =
     | Deploy
     | Destroy
     | Compile
+    | Stage of string option
 
     interface IArgParserTemplate with
         member this.Usage =
@@ -14,11 +15,12 @@ type CliArgument =
             | Deploy -> "TODO"
             | Destroy -> "TODO"
             | Compile -> "TODO"
+            | Stage _ -> "TODO"
 
 type Options =
-    | Deploy
-    | Destroy
-    | Compile
+    | Deploy of Stage: string option
+    | Destroy of Stage: string option
+    | Compile of Stage: string option
     | None
 
 module Options =
@@ -27,7 +29,15 @@ module Options =
     let parse (args: string array) : Options =
         let results = parser.Parse(args)
 
-        if results.Contains CliArgument.Compile then Compile
-        else if results.Contains CliArgument.Deploy then Deploy
-        else if results.Contains CliArgument.Destroy then Destroy
-        else None
+        let stage = results.GetResult(CliArgument.Stage)
+
+        if results.Contains CliArgument.Compile then
+            Compile stage
+        else if results.Contains CliArgument.Deploy then
+            Deploy stage
+        else if results.Contains CliArgument.Destroy then
+            Destroy stage
+        else
+            None
+
+    let describeArguments () = parser.PrintUsage()
